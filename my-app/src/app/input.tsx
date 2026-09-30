@@ -20,11 +20,15 @@ export default function Input() {
             </View>
             <Button onPress={async () => {
                 try{
-                    if(params.id)
-                        await updateDoc(doc(db, 'prices', params.id), {name: name, price: price})
-                    else
-                        await addDoc(collection(db, 'prices'), {name: name, price: price})
-                    alert('Berhasil Menyimpan.')
+                    if(name === '' && price === '')
+                        alert('Mohon Masukkan Nama dan Harga.')
+                    else{
+                        if(params.id)
+                            await updateDoc(doc(db, 'prices', params.id), {name: name, price: price})
+                        else
+                            await addDoc(collection(db, 'prices'), {name: name, price: price})
+                        alert('Berhasil Menyimpan.')
+                    }
                 }catch(err){
                     console.log(err)
                     alert('Tidak Dapat Menambah Produk. Terjadi Kesalahan.')
@@ -42,7 +46,7 @@ const styles = StyleSheet.create({
         gap: 12
     },
     form: {
-        backgroundColor: '#111',
+        backgroundColor: '#333',
         padding: 20,
         borderRadius: 12,
         gap: 12,
@@ -54,7 +58,7 @@ const styles = StyleSheet.create({
         fontSize: 20
     },
     input: {
-        backgroundColor: '#333',
+        backgroundColor: '#444',
         borderRadius: 12,
         color: '#fff',
         fontWeight: 'bold',
