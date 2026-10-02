@@ -49,6 +49,7 @@ export default function Index() {
       <View style={styles.header}>
         <TextInput style={styles.input} placeholder="Cari Produk" value={search} onChangeText={setSearch}></TextInput>
         <Button onPress={() => router.push("/input")}>Tambah</Button>
+        <Button onPress={() => router.push("/tesimage")}>Tes Image</Button>
       </View>
       <ScrollView>
         {prices.map((price) => (
