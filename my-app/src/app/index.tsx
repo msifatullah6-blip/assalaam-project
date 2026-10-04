@@ -1,6 +1,6 @@
-import { Text, View, StyleSheet, ScrollView, TextInput } from "react-native";
+import { Text, View, StyleSheet, ScrollView, TextInput, Image } from "react-native";
 import { useEffect, useState } from "react";
-import { collection, getDocs, deleteDoc, doc, query, where } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import db from "../../db/firebaseConfig";
 import { Button } from "expo-router/build/react-navigation";
 import { useRouter } from "expo-router"
@@ -9,6 +9,7 @@ type Price = {
   id: string;
   name: string;
   price: string;
+  image: string[];
 };
 
 export default function Index() {
@@ -23,7 +24,7 @@ export default function Index() {
         const snapshot = await getDocs(collection(db, "prices"));
         const data = snapshot.docs.map((doc) => {
           const d = doc.data();
-          return { id: doc.id, name: d.name, price: d.price };
+          return { id: doc.id, name: d.name, price: d.price, image: d.image };
         });
         setAllPr(data);
       } catch (err) {
@@ -49,26 +50,19 @@ export default function Index() {
       <View style={styles.header}>
         <TextInput style={styles.input} placeholder="Cari Produk" value={search} onChangeText={setSearch}></TextInput>
         <Button onPress={() => router.push("/input")}>Tambah</Button>
-        <Button onPress={() => router.push("/tesimage")}>Tes Image</Button>
       </View>
       <ScrollView>
         {prices.map((price) => (
           <View key={price.id} style={styles.listContainer}>
+            {
+              !price.image[0]?<View style={styles.image} />:<Image style={styles.image} source={{uri: price.image[0]}}></Image>
+            }
             <View style={styles.listContent}>
               <Text style={styles.text}>{price.name}</Text>
-              <Text style={styles.text}>Rp. {price.price}</Text>
+              <Text style={[styles.text, {color: '#fff8', fontSize: 20}]}>Rp. {price.price}</Text>
             </View>
             <View style={styles.listContent}>
-              <Button onPress={async () => {
-                try{
-                  await deleteDoc(doc(db, 'prices', price.id))
-                }catch(err){
-                  console.log(err)
-                }
-              }}>Hapus</Button>
-              <Button onPress={() => router.push({
-                  pathname: '/input', params: {id: price.id, name: price.name, price: price.price}
-              })}>Edit</Button>
+              <Button onPressIn={() => router.push({pathname: '/detail', params: { id: price.id, name: price.name, price: price.price, image: JSON.stringify(price.image) }})}>Lihat Detail</Button>
             </View>
           </View>
         ))}
@@ -89,8 +83,15 @@ const styles = StyleSheet.create({
     flexDirection:'row',
     gap: 10
   },
-  listContainer: { 
+  image: {
+    height: 200,
+    flex: 1,
     backgroundColor: '#333',
+    borderRadius: 12,
+    marginBottom: 10
+  },
+  listContainer: { 
+    backgroundColor: '#111',
     borderRadius: 12,
     marginBottom: 10,
     padding: 10,
@@ -102,12 +103,12 @@ const styles = StyleSheet.create({
   text: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 20
+    fontSize: 25
   },
   input: {
-        backgroundColor: '#444',
+        backgroundColor: '#333',
         borderRadius: 12,
-        color: '#fff8',
+        color: '#fff',
         fontWeight: 'bold',
         fontSize: 15,
         padding: 12,

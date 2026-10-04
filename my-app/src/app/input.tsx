@@ -1,14 +1,64 @@
-import { addDoc, collection, doc, updateDoc } from "firebase/firestore";
+import { setDoc, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { useState } from "react";
-import { Text, View, StyleSheet, TextInput } from "react-native";
+import { Text, View, StyleSheet, TextInput, Alert, Image } from "react-native";
 import db from "../../db/firebaseConfig";
 import { Button } from "expo-router/build/react-navigation";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import * as ImagePicker from 'expo-image-picker';
+import { File, UploadType } from 'expo-file-system';
+import * as Crypto from 'expo-crypto';
 
 export default function Input() {
-    const params = useLocalSearchParams<{id?: string, name?: string, price?: string}>()
+    const router = useRouter()
+    const params = useLocalSearchParams<{id: string, name: string, price: string}>()
+    const [id, setId] = useState(params.id || Crypto.randomUUID())
     const [name, setName] = useState(params.name || '')
     const [price, setPrice] = useState(params.price || '')
+    const [image, setImage] = useState<string>()
+
+    const pickImage = async () => {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+        if (!permissionResult.granted) {
+          Alert.alert('Permission required', 'Permission to access the media library is required.');
+          return;
+        }
+    
+        let result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images', 'videos'],
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 1,
+        });
+    
+        if (!result.canceled) {
+          try {
+            const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUD_NAME;
+            const UPLOAD_PRESET: any= process.env.EXPO_PUBLIC_UPLOAD_PRESET;
+            const file = new File(result.assets[0].uri);
+
+            const task = file.createUploadTask(
+                `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+                {
+                uploadType: UploadType.MULTIPART,
+                fieldName: 'file',
+                mimeType: 'image/jpeg',
+                parameters: {
+                    upload_preset: UPLOAD_PRESET,
+                    folder: `assalaam/${id}`, 
+                },
+                }
+            );
+
+            const r = await task.uploadAsync();
+            const response = JSON.parse(r.body);
+            setImage(response.secure_url)
+            } catch (err) {
+            console.error('Upload gagal:', err);
+            Alert.alert('Error', 'Upload gagal. Coba lagi.');
+            }
+        }
+    };
 
     return (
         <View style={styles.container}>
@@ -18,16 +68,22 @@ export default function Input() {
                 <Text style={styles.text}>Masukkan Harga Produk:</Text>
                 <TextInput style={styles.input} value={price} onChangeText={setPrice}></TextInput>
             </View>
+            {image && <Image style={styles.image} source={{uri: image}}></Image>}
+            <Button onPress={pickImage}>Tambahkan Gambar</Button>
             <Button onPress={async () => {
                 try{
                     if(name === '' && price === '')
                         alert('Mohon Masukkan Nama dan Harga.')
                     else{
                         if(params.id)
-                            await updateDoc(doc(db, 'prices', params.id), {name: name, price: price})
+                            if(image)
+                                await updateDoc(doc(db, 'prices', params.id), {name: name, price: price, image: arrayUnion(image)})
+                            else
+                                await updateDoc(doc(db, 'prices', params.id), {name: name, price: price})
                         else
-                            await addDoc(collection(db, 'prices'), {name: name, price: price})
-                        alert('Berhasil Menyimpan.')
+                            await setDoc(doc(db, 'prices', id), {name: name, price: price, image: image?[image]:[]})
+                        Alert.alert('Konfirmasi', 'Berhasil Menyimpan!', [{text: 'Ok', onPress: () => console.log('Berhasil Menyimpan Data')}])
+                        router.back()
                     }
                 }catch(err){
                     console.log(err)
@@ -46,19 +102,25 @@ const styles = StyleSheet.create({
         gap: 12
     },
     form: {
-        backgroundColor: '#333',
+        backgroundColor: '#111',
         padding: 20,
         borderRadius: 12,
         gap: 12,
         paddingBottom: 50
     },
+    image: {
+        height: 250,
+        backgroundColor: '#333',
+        borderRadius: 12,
+        marginBottom: 10,
+    },
     text: {
         color: '#fff',
         fontWeight: 'bold',
-        fontSize: 20
+        fontSize: 18
     },
     input: {
-        backgroundColor: '#444',
+        backgroundColor: '#333',
         borderRadius: 12,
         color: '#fff',
         fontWeight: 'bold',
