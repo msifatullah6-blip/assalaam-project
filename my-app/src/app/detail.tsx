@@ -1,23 +1,62 @@
 import { Text, View, StyleSheet, ScrollView, Image, Alert } from "react-native";
-import { deleteDoc, doc } from "firebase/firestore";
+import { deleteDoc, doc, getDoc } from "firebase/firestore";
 import db from "../../db/firebaseConfig";
 import { Button } from "expo-router/build/react-navigation";
 import { useLocalSearchParams, useRouter } from "expo-router"
+import { useEffect, useState } from "react";
+
+type Price = {
+  name: string;
+  price: string;
+  image: string[];
+};
 
 export default function Detail(){
-    const param = useLocalSearchParams<{id: string, name: string, price: string, image: string}>()
+    const param = useLocalSearchParams<{id: string}>()
     const router = useRouter()
-    const image: string[] = JSON.parse(param.image)
+    const [ data, setData ] = useState<Price>()
+
+    useEffect(() => {
+        const fetchPrices = async () => {
+        try {
+            const snapshot = await getDoc(doc(db, "prices", param.id));
+            if (!snapshot.exists()) {
+                console.warn("No such document!");
+                return;
+            }
+
+            // 2. Now it's safe to read data + include the id
+            const result = snapshot.data();
+            const d: Price = {
+                name: result.name,
+                price: result.price,
+                image: result.image,
+            };
+            setData(d)
+        } catch (err) {
+            console.error("Error fetching prices:", err);
+        }
+        };
+        fetchPrices();
+    }, [data])
+
+    if (!data) {
+        return (
+            <View style={styles.container}>
+                <Text style={styles.text}>Loading...</Text>
+            </View>
+        );
+    }
 
     return(
         <View style={styles.container}>
             <ScrollView>
             {
-                !image[0]?<View style={styles.image} />:<Image style={styles.image} source={{uri: image[0]}}></Image>
+                !data.image[0]?<View style={styles.image} />:<Image style={styles.image} source={{uri: data.image[0]}}></Image>
             }
             <View style={styles.listContainer}>
-                <Text style={styles.text}>Nama: {param.name}</Text>
-                <Text style={styles.text}>Harga: Rp. {param.price}</Text>
+                <Text style={styles.text}>Nama: {data.name}</Text>
+                <Text style={styles.text}>Harga: Rp. {data.price}</Text>
                 <Button onPress={async () => {
                     try{
                         Alert.alert('Konfirmasi', 'Anda Yakin Ingin Menghapus?', [
@@ -32,12 +71,12 @@ export default function Detail(){
                     }
                 }}>Hapus</Button>
                 <Button onPress={() => router.push({
-                    pathname: '/input', params: {id: param.id, name: param.name, price: param.price}
+                    pathname: '/input', params: {id: param.id, name: data.name, price: data.price}
                 })}>Edit</Button>
             </View>
-            {!image[0]?<></>:<ScrollView horizontal={true}>
+            {!data.image[0]?<></>:<ScrollView horizontal={true}>
                 {
-                    image.map((i, index) => 
+                    data.image.map((i, index) => 
                         <Image key={index} style={[styles.image, {width: 250, marginRight: 10}]} source={{uri: i}}></Image>
                     )
                 }

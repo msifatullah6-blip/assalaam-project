@@ -10,11 +10,12 @@ import * as Crypto from 'expo-crypto';
 
 export default function Input() {
     const router = useRouter()
+    const [ isLoading, setIsLoading ] = useState(false)
     const params = useLocalSearchParams<{id: string, name: string, price: string}>()
     const [id, setId] = useState(params.id || Crypto.randomUUID())
     const [name, setName] = useState(params.name || '')
     const [price, setPrice] = useState(params.price || '')
-    const [image, setImage] = useState<string>()
+    const [preview, setPreview] = useState<string>()
 
     const pickImage = async () => {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -32,17 +33,28 @@ export default function Input() {
         });
     
         if (!result.canceled) {
-          try {
+            setPreview(result.assets[0].uri)}
+    };
+
+    const uploadImage = async () => {
+        if (!preview) {
+            Alert.alert('Error', 'Pilih gambar dulu!');
+            return;
+        }
+
+        try {
             const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUD_NAME;
             const UPLOAD_PRESET: any= process.env.EXPO_PUBLIC_UPLOAD_PRESET;
-            const file = new File(result.assets[0].uri);
+            const ext = preview.split('.').pop()?.toLowerCase();
+            const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+            const file = new File(preview);
 
             const task = file.createUploadTask(
                 `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
                 {
                 uploadType: UploadType.MULTIPART,
                 fieldName: 'file',
-                mimeType: 'image/jpeg',
+                mimeType: mimeType,
                 parameters: {
                     upload_preset: UPLOAD_PRESET,
                     folder: `assalaam/${id}`, 
@@ -52,13 +64,18 @@ export default function Input() {
 
             const r = await task.uploadAsync();
             const response = JSON.parse(r.body);
-            setImage(response.secure_url)
-            } catch (err) {
+            if(!response.secure_url)
+                throw new Error('Gagal upload Gambar.')
+                
+            if(params.id)
+                await updateDoc(doc(db, 'prices', params.id), {name: name, price: price, image: arrayUnion(response.secure_url)})
+            else
+                await setDoc(doc(db, 'prices', id), {name: name, price: price, image: [response.secure_url]})
+        } catch (err) {
             console.error('Upload gagal:', err);
             Alert.alert('Error', 'Upload gagal. Coba lagi.');
-            }
         }
-    };
+    }
 
     return (
         <View style={styles.container}>
@@ -68,28 +85,32 @@ export default function Input() {
                 <Text style={styles.text}>Masukkan Harga Produk:</Text>
                 <TextInput style={styles.input} value={price} onChangeText={setPrice}></TextInput>
             </View>
-            {image && <Image style={styles.image} source={{uri: image}}></Image>}
+            {preview && <Image style={styles.image} source={{uri: preview}}></Image>}
             <Button onPress={pickImage}>Tambahkan Gambar</Button>
             <Button onPress={async () => {
+                if(name.trim() === '' || price.trim() === '')
+                    alert('Mohon Masukkan Nama dan Harga.')
+
+                setIsLoading(true)
                 try{
-                    if(name === '' && price === '')
-                        alert('Mohon Masukkan Nama dan Harga.')
-                    else{
+                    if(!preview)
                         if(params.id)
-                            if(image)
-                                await updateDoc(doc(db, 'prices', params.id), {name: name, price: price, image: arrayUnion(image)})
-                            else
-                                await updateDoc(doc(db, 'prices', params.id), {name: name, price: price})
+                            await updateDoc(doc(db, 'prices', params.id), {name: name, price: price})
                         else
-                            await setDoc(doc(db, 'prices', id), {name: name, price: price, image: image?[image]:[]})
-                        Alert.alert('Konfirmasi', 'Berhasil Menyimpan!', [{text: 'Ok', onPress: () => console.log('Berhasil Menyimpan Data')}])
-                        router.back()
-                    }
+                            await setDoc(doc(db, 'prices', id), {name: name, price: price, image: []})
+                    else
+                        await uploadImage()
+                    Alert.alert('Konfirmasi', 'Berhasil Menyimpan!', [{text: 'Ok', onPress: () => console.log('Berhasil Menyimpan Data')}])
+                    router.back()
                 }catch(err){
                     console.log(err)
                     alert('Tidak Dapat Menambah Produk. Terjadi Kesalahan.')
+                }finally{
+                    setIsLoading(false)
                 }
-            }}>Simpan</Button>
+            }} disabled={isLoading}>{
+                isLoading?'Menyimpan...':'Simpan'
+            }</Button>
         </View>
     )
 }
