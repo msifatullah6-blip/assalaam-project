@@ -1,20 +1,22 @@
 import { setDoc, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { useState } from "react";
-import { Text, View, StyleSheet, TextInput, Alert, Image } from "react-native";
+import { Text, View, TextInput, Alert, Image } from "react-native";
 import db from "../../db/firebaseConfig";
 import { Button } from "expo-router/build/react-navigation";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from 'expo-image-picker';
 import { File, UploadType } from 'expo-file-system';
 import * as Crypto from 'expo-crypto';
+import s from "./style/styles";
 
 export default function Input() {
     const router = useRouter()
     const [ isLoading, setIsLoading ] = useState(false)
-    const params = useLocalSearchParams<{id: string, name: string, price: string}>()
+    const params = useLocalSearchParams<{id: string, name: string, price: string, desc: string}>()
     const [id, setId] = useState(params.id || Crypto.randomUUID())
     const [name, setName] = useState(params.name || '')
     const [price, setPrice] = useState(params.price || '')
+    const [desc, setDesc] = useState(params.desc || '')
     const [preview, setPreview] = useState<string>()
 
     const pickImage = async () => {
@@ -68,9 +70,9 @@ export default function Input() {
                 throw new Error('Gagal upload Gambar.')
                 
             if(params.id)
-                await updateDoc(doc(db, 'prices', params.id), {name: name, price: price, image: arrayUnion(response.secure_url)})
+                await updateDoc(doc(db, 'prices', params.id), {name: name, price: price, desc: desc, image: arrayUnion(response.secure_url)})
             else
-                await setDoc(doc(db, 'prices', id), {name: name, price: price, image: [response.secure_url]})
+                await setDoc(doc(db, 'prices', id), {name: name, price: price, desc: desc, image: [response.secure_url]})
         } catch (err) {
             console.error('Upload gagal:', err);
             Alert.alert('Error', 'Upload gagal. Coba lagi.');
@@ -78,14 +80,16 @@ export default function Input() {
     }
 
     return (
-        <View style={styles.container}>
-            <View style={styles.form}>
-                <Text style={styles.text}>Masukkan Nama Produk:</Text>
-                <TextInput style={styles.input} value={name} onChangeText={setName}></TextInput>
-                <Text style={styles.text}>Masukkan Harga Produk:</Text>
-                <TextInput style={styles.input} value={price} onChangeText={setPrice}></TextInput>
+        <View style={[s.container, {gap: 12}]}>
+            <View style={s.form}>
+                <Text style={s.text}>Masukkan Nama Produk:</Text>
+                <TextInput style={s.input} value={name} onChangeText={setName}></TextInput>
+                <Text style={s.text}>Masukkan Harga Produk:</Text>
+                <TextInput style={s.input} value={price} onChangeText={setPrice}></TextInput>
+                <Text style={s.text}>Masukkan Deskripsi:</Text>
+                <TextInput multiline numberOfLines={4} maxLength={100} style={s.input} value={desc} onChangeText={setDesc}></TextInput>
             </View>
-            {preview && <Image style={styles.image} source={{uri: preview}}></Image>}
+            {preview && <Image style={s.image} source={{uri: preview}}></Image>}
             <Button onPress={pickImage}>Tambahkan Gambar</Button>
             <Button onPress={async () => {
                 if(name.trim() === '' || price.trim() === '')
@@ -95,9 +99,9 @@ export default function Input() {
                 try{
                     if(!preview)
                         if(params.id)
-                            await updateDoc(doc(db, 'prices', params.id), {name: name, price: price})
+                            await updateDoc(doc(db, 'prices', params.id), {name: name, price: price, desc: desc})
                         else
-                            await setDoc(doc(db, 'prices', id), {name: name, price: price, image: []})
+                            await setDoc(doc(db, 'prices', id), {name: name, price: price, desc: desc, image: []})
                     else
                         await uploadImage()
                     Alert.alert('Konfirmasi', 'Berhasil Menyimpan!', [{text: 'Ok', onPress: () => console.log('Berhasil Menyimpan Data')}])
@@ -114,38 +118,3 @@ export default function Input() {
         </View>
     )
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1, 
-        padding: 20, 
-        backgroundColor: '#222',
-        gap: 12
-    },
-    form: {
-        backgroundColor: '#111',
-        padding: 20,
-        borderRadius: 12,
-        gap: 12,
-        paddingBottom: 50
-    },
-    image: {
-        height: 250,
-        backgroundColor: '#333',
-        borderRadius: 12,
-        marginBottom: 10,
-    },
-    text: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 18
-    },
-    input: {
-        backgroundColor: '#333',
-        borderRadius: 12,
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 15,
-        padding: 12
-    }
-})

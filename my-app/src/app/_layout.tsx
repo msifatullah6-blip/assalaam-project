@@ -22,7 +22,13 @@ export default function RootLayout() {
           headerStyle: {backgroundColor: '#3464eb'},
           headerTitleStyle: {fontWeight: 'bold', fontSize: 20},
           headerTintColor: '#fff'
-          }}></StackScreen>
+        }}></StackScreen>
+        <StackScreen name="showimage" options={{
+          title: "Gambar Produk",
+          headerStyle: {backgroundColor: '#3464eb'},
+          headerTitleStyle: {fontWeight: 'bold', fontSize: 20},
+          headerTintColor: '#fff'
+        }}></StackScreen>
     </Stack>
   );
 }
