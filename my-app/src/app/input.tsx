@@ -38,9 +38,28 @@ export default function Input() {
             setPreview(result.assets[0].uri)}
     };
 
+    const takePhoto = async () => {
+        const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    
+        if (!permissionResult.granted) {
+          Alert.alert('Permission required', 'Permission to access the camera is required.');
+          return;
+        }
+    
+        let result = await ImagePicker.launchCameraAsync({
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 1,
+        });
+    
+        if (!result.canceled) {
+          setPreview(result.assets[0].uri);
+        }
+      };
+
     const uploadImage = async () => {
         if (!preview) {
-            Alert.alert('Error', 'Pilih gambar dulu!');
+            Alert.alert('Error', 'Silahkan tambah gambar dulu.');
             return;
         }
 
@@ -90,27 +109,29 @@ export default function Input() {
                 <TextInput multiline numberOfLines={4} maxLength={100} style={s.input} value={desc} onChangeText={setDesc}></TextInput>
             </View>
             {preview && <Image style={s.image} source={{uri: preview}}></Image>}
-            <Button onPress={pickImage}>Tambahkan Gambar</Button>
+            <Button onPress={pickImage}>Pilih Gambar</Button>
+            <Button onPress={takePhoto}>Ambil Gambar</Button>
             <Button onPress={async () => {
-                if(name.trim() === '' || price.trim() === '')
+                if(name === '' || price === '')
                     alert('Mohon Masukkan Nama dan Harga.')
-
-                setIsLoading(true)
-                try{
-                    if(!preview)
-                        if(params.id)
-                            await updateDoc(doc(db, 'prices', params.id), {name: name, price: price, desc: desc})
+                else{
+                    setIsLoading(true)
+                    try{
+                        if(!preview)
+                            if(params.id)
+                                await updateDoc(doc(db, 'prices', params.id), {name: name, price: price, desc: desc})
+                            else
+                                await setDoc(doc(db, 'prices', id), {name: name, price: price, desc: desc, image: []})
                         else
-                            await setDoc(doc(db, 'prices', id), {name: name, price: price, desc: desc, image: []})
-                    else
-                        await uploadImage()
-                    Alert.alert('Konfirmasi', 'Berhasil Menyimpan!', [{text: 'Ok', onPress: () => console.log('Berhasil Menyimpan Data')}])
-                    router.back()
-                }catch(err){
-                    console.log(err)
-                    alert('Tidak Dapat Menambah Produk. Terjadi Kesalahan.')
-                }finally{
-                    setIsLoading(false)
+                            await uploadImage()
+                        Alert.alert('Konfirmasi', 'Berhasil Menyimpan!', [{text: 'Ok', onPress: () => console.log('Berhasil Menyimpan Data')}])
+                        router.back()
+                    }catch(err){
+                        console.log(err)
+                        alert('Tidak Dapat Menambah Produk. Terjadi Kesalahan.')
+                    }finally{
+                        setIsLoading(false)
+                    }
                 }
             }} disabled={isLoading}>{
                 isLoading?'Menyimpan...':'Simpan'
